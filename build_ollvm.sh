@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 VERSION=17.0.6
 CmakeExe="cmake"
 BuildRootPath="build"
