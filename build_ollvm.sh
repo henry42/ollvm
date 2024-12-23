@@ -1,64 +1,51 @@
 #!/bin/bash
-VERSION=17.0.6
-CmakeExe="cmake"
-BuildRootPath="build"
-SourceRootPath="${BuildRootPath}/llvm-project-llvmorg-${VERSION}"
-OllvmSourceRootPath="${BuildRootPath}/ollvm17-${VERSION}"
-mkdir -p "${BuildRootPath}"
+# set -e
 
-if [ ! -d "${SourceRootPath}" ];then
-    pushd "${BuildRootPath}" > /dev/null
-    wget "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-${VERSION}.zip" -O "llvmorg-${VERSION}.zip"
-    unzip "llvmorg-${VERSION}.zip"
-    wget "https://github.com/DreamSoule/ollvm17/archive/refs/tags/${VERSION}.zip" -O "ollvm-${VERSION}.zip"
-    unzip ollvm-${VERSION}.zip
+VERSION=19.1.6
+CMAKE_EXEC="cmake"
+BASE_DIR=$(cd $(dirname $(readlink -f $0));pwd)
+BUILD_ROOT_PATH="${BASE_DIR}/build"
+SOURCE_ROOT_PATH="${BUILD_ROOT_PATH}/llvm-project-${VERSION}.src"
+mkdir -p "${BUILD_ROOT_PATH}"
+
+if [ ! -d "${SOURCE_ROOT_PATH}" ];then
+    pushd "${BUILD_ROOT_PATH}" > /dev/null
+    wget "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz" -O "llvm-${VERSION}.tar.xz"
+    tar xvjf "llvm-${VERSION}.tar.xz"
+    wget "https://github.com/user-attachments/files/18228906/passes.patch.zip" -O "passes.patch.zip"
+    pushd "$SOURCE_ROOT_PATH/llvm/lib/Passes" > /dev/null
+    unzip -o "${BUILD_ROOT_PATH}/passes.patch.zip"
     popd > /dev/null
-    cp -R "$OllvmSourceRootPath/llvm-project/" $SourceRootPath
+    popd > /dev/null
 fi
 
+PROJECT_DIR="${BUILD_ROOT_PATH}/project"
+OUTPUT_DIR="${BUILD_ROOT_PATH}/output"
 
-projectDir="${BuildRootPath}/project"
-buildDir="${BuildRootPath}/output"
-
-if [ -d $projectDir ]
+if [ -d $PROJECT_DIR ]
 then
-    echo "Removing existing Project directory : $projectDir ..."
-    rm -rf "$projectDir"
+    echo "Removing existing project directory : $PROJECT_DIR ..."
+    rm -rf "$PROJECT_DIR"
 fi
-if [ -d $buildDir ]
+if [ -d $OUTPUT_DIR ]
 then
-    echo "Removing existing Build directory : $buildDir ..."
-    rm -rf "$buildDir"
+    echo "Removing existing output directory : $OUTPUT_DIR ..."
+    rm -rf "$OUTPUT_DIR"
 fi
 
-echo "Creating Project directory : $projectDir ..."
-mkdir -p $projectDir
-echo "Creating Build directory : $buildDir ..."
-mkdir -p $buildDir
-buildFullPath=$(realpath "./$buildDir")
+echo "Creating project directory : $PROJECT_DIR ..."
+mkdir -p $PROJECT_DIR
+echo "Creating output directory : $OUTPUT_DIR ..."
+mkdir -p $OUTPUT_DIR
 
-echo "Patching LLVM Source Files..."
 
-patchFile="$SourceRootPath/llvm/include/llvm/IR/Function.h"
+echo "Generating project files ..."
+pushd $PROJECT_DIR > /dev/null
 
-if [ ! -f "$patchFile.orig" ]
-then
-    cp "$patchFile" "$patchFile.orig"
-else 
-    cp "$patchFile.orig" "$patchFile"
-fi
-
-sed -i "" 's/const BasicBlockListType/public:\n\tconst BasicBlockListType/' "$patchFile"
-
-echo "Generating Project Files ..."
-pushd $projectDir > /dev/null
-
-# -DLLVM_INCLUDE_TOOLS=OFF
-# -DLLVM_INCLUDE_UTILS=OFF
-$CmakeExe \
+$CMAKE_EXEC \
     -DLLVM_ENABLE_PROJECTS="clang;lld" \
     -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_PREFIX="$buildFullPath" \
+    -DCMAKE_INSTALL_PREFIX="$OUTPUT_DIR" \
     \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DLLVM_INCLUDE_DOCS=OFF \
@@ -82,15 +69,15 @@ $CmakeExe \
     \
     -G "Ninja" \
     \
-    "../../$SourceRootPath/llvm"
+    "$SOURCE_ROOT_PATH/llvm/"
 if [ $? -ne 0 ]; then
-    echo "Project Generation failed !"
+    echo "Project generation failed !"
     popd > /dev/null
     exit 1
 fi
 
 echo "Building LLVM ..."
-$CmakeExe --build . --target install-clang install-lld
+$CMAKE_EXEC --build . --target install-clang install-lld
 
 if [ $? -ne 0 ]; then
     echo "Compilation failed !"
