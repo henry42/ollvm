@@ -22,11 +22,14 @@ fi
 PROJECT_DIR="${BUILD_ROOT_PATH}/project"
 OUTPUT_DIR="${BUILD_ROOT_PATH}/output"
 
-if [ -d $PROJECT_DIR ]
-then
-    echo "Removing existing project directory : $PROJECT_DIR ..."
-    rm -rf "$PROJECT_DIR"
+if [ "$1" != "--continue" ];then
+    if [ -d $PROJECT_DIR ]
+    then
+        echo "Removing existing project directory : $PROJECT_DIR ..."
+        rm -rf "$PROJECT_DIR"
+    fi
 fi
+
 if [ -d $OUTPUT_DIR ]
 then
     echo "Removing existing output directory : $OUTPUT_DIR ..."
